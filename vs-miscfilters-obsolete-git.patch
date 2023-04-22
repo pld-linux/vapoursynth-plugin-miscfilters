@@ -1,0 +1,151 @@
+commit aa5fca3266af411c18c3c87936073a2dfb57f14a
+Author: Fredrik Mellbin <fredrik.mellbin@gmail.com>
+Date:   Tue Oct 5 20:32:32 2021 +0200
+
+    Remove filtershared.h dependency
+
+diff --git a/src/miscfilters.cpp b/src/miscfilters.cpp
+index 24b8538..a0892d4 100644
+--- a/src/miscfilters.cpp
++++ b/src/miscfilters.cpp
+@@ -29,11 +29,6 @@
+ #include <vector>
+ #include <VapourSynth4.h>
+ #include <VSHelper4.h>
+-#include "filtershared.h"
+-
+-#ifdef VS_TARGET_CPU_X86
+-#include <emmintrin.h>
+-#endif
+ 
+ namespace {
+ std::string operator""_s(const char *str, size_t len) { return{ str, len }; }
+@@ -41,6 +36,60 @@ std::string operator""_s(const char *str, size_t len) { return{ str, len }; }
+ 
+ using namespace vsh;
+ 
++///////////////////////////////////////
++// Shared
++
++template<typename T>
++struct DualNodeData : public T {
++private:
++    const VSAPI *vsapi;
++public:
++    VSNode *node1 = nullptr;
++    VSNode *node2 = nullptr;
++
++    explicit DualNodeData(const VSAPI *vsapi) noexcept : T(), vsapi(vsapi) {
++    }
++
++    ~DualNodeData() {
++        vsapi->freeNode(node1);
++        vsapi->freeNode(node2);
++    }
++};
++
++template<typename T>
++static void VS_CC filterFree(void *instanceData, VSCore *core, const VSAPI *vsapi) {
++    delete reinterpret_cast<T *>(instanceData);
++}
++
++static bool is8to16orFloatFormat(const VSVideoFormat &fi, bool allowVariable = false, bool allowCompat = false) {
++    if (fi.colorFamily == cfUndefined && !allowVariable)
++        return false;
++
++    if ((fi.sampleType == stInteger && fi.bitsPerSample > 16) || (fi.sampleType == stFloat && fi.bitsPerSample != 32))
++        return false;
++
++    return true;
++}
++
++static inline void getPlanesArg(const VSMap *in, bool *process, const VSAPI *vsapi) {
++    int m = vsapi->mapNumElements(in, "planes");
++
++    for (int i = 0; i < 3; i++)
++        process[i] = (m <= 0);
++
++    for (int i = 0; i < m; i++) {
++        int o = vsapi->mapGetIntSaturated(in, "planes", i, nullptr);
++
++        if (o < 0 || o >= 3)
++            throw std::runtime_error("plane index out of range");
++
++        if (process[o])
++            throw std::runtime_error("plane specified twice");
++
++        process[o] = true;
++    }
++}
++
+ ///////////////////////////////////////
+ // SCDetect
+ 
+
+commit 90f7cdfe3c68b210952aa7bd47039f112342a8ad
+Author: Dani <surukko@gmail.com>
+Date:   Tue Oct 5 20:56:36 2021 +0200
+
+    Add meson build system.
+
+diff --git a/meson.build b/meson.build
+new file mode 100644
+index 0000000..1496460
+--- /dev/null
++++ b/meson.build
+@@ -0,0 +1,18 @@
++project('Miscfilters', 'cpp',
++  default_options: ['buildtype=release', 'warning_level=2', 'b_ndebug=if-release', 'cpp_std=c++14'],
++  meson_version : '>=0.48.0',
++  version : '1'
++)
++
++sources = [
++  'src/miscfilters.cpp'
++]
++
++dep = dependency('vapoursynth', version: '>=55').partial_dependency(compile_args : true, includes : true)
++
++shared_module('miscfilters', sources,
++  dependencies : dep,
++  install : true,
++  install_dir : join_paths(dep.get_pkgconfig_variable('libdir'), 'vapoursynth'),
++  gnu_symbol_visibility : 'hidden'
++)
+
+commit d87e01b13b09b1e0979186bdb0e04630f6ec4885
+Merge: aa5fca3 90f7cdf
+Author: Fredrik Mellbin <fredrik.mellbin@gmail.com>
+Date:   Tue Oct 5 21:00:44 2021 +0200
+
+    Merge pull request #3 from 4re/master
+    
+    Add meson build system.
+
+commit bf80943644a47e3760c049ffe2ea0947d1a53dc0
+Author: Justin Turner Arthur <justinarthur@gmail.com>
+Date:   Mon Jan 24 01:15:15 2022 -0600
+
+    Explicitly import string stdlib.
+
+diff --git a/src/miscfilters.cpp b/src/miscfilters.cpp
+index a0892d4..b21a90a 100644
+--- a/src/miscfilters.cpp
++++ b/src/miscfilters.cpp
+@@ -26,6 +26,7 @@
+ #include <limits>
+ #include <memory>
+ #include <stdexcept>
++#include <string>
+ #include <vector>
+ #include <VapourSynth4.h>
+ #include <VSHelper4.h>
+
+commit 07e0589a381f7deb3bf533bb459a94482bccc5c7
+Merge: d87e01b bf80943
+Author: Fredrik Mellbin <fredrik.mellbin@gmail.com>
+Date:   Mon Jan 24 10:30:40 2022 +0100
+
+    Merge pull request #4 from JustinTArthur/fix-missing-_s-operator
+    
+    Explicitly include <string> stdlib.
