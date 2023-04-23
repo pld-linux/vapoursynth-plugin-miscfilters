@@ -5,7 +5,6 @@ Version:	2
 Release:	1
 License:	GPL v2+
 Group:		Libraries
-%define	gitref	acdeca22038583d73d420ccf76d0658f06cae3c0
 Source0:	https://github.com/vapoursynth/vs-miscfilters-obsolete/archive/R%{version}/vs-miscfilters-obsolete-R%{version}.tar.gz
 # Source0-md5:	d8b2b296f789ad1cf9fd0abe1fb5c0cc
 Patch0:		vs-miscfilters-obsolete-git.patch
