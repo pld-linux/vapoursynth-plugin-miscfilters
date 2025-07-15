@@ -26,7 +26,7 @@ głównie dla zgodności z programem Avisynth.
 
 %prep
 %setup -q -n vs-miscfilters-obsolete-R%{version}
-%patch0 -p1
+%patch -P0 -p1
 
 %build
 %meson build
